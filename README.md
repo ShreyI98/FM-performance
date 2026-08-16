@@ -1,33 +1,24 @@
 # FM Pickup Performance Dashboard
 
-## Tabs
-### Failure Analysis
-- All failure reasons
-- Client-wise failure list with failure count and % contribution
-- FE-wise failure analysis shown on demand with: total mapped pickup, failed pickup, success pickup and failure %
-- No failure-by-centre chart
-
-### Pickup Success Analysis
-Uses only `Status = Picked Up` from the raw data and includes:
-- Client-wise success view
-- Weight
-- PUR count / PUR ID trend
-- Weight trend
-- Dispatch ID-wise PUR mapping with PUR IDs
-
-### Filters
-- Centre selector (worksheet name = centre)
-- Multi-date selector
-
-### Data loading
-- Excel: every non-empty worksheet is loaded and treated as a separate centre.
-- CSV: treated as a single `CSV` centre.
-- After first load, the upload panel is hidden.
-- `↻ Re-upload Raw Data` replaces the dataset and resets date filters.
-- The last processed dataset is stored locally in the browser for convenience.
-
-### Failure logic
-1. Status = Not Picked
-2. Exclude OTP/Geofence when In Slot = Yes
-3. Exclude Shipment not ready for pickup-Multi client Seller Partial handover
-4. Exclude Client = FEDEX EXPORT
+- Failure Analysis and Pickup Success Analysis tabs.
+- All Excel worksheets are loaded and each worksheet name is treated as a centre.
+- Centre selection and a smooth From/To date-range selection are applied to both tabs.
+- Filters are applied only after clicking **Refresh Dashboard**.
+- Failure tab:
+  - Failure reason list with count, contribution %, and sorting.
+  - Client-wise failure list with count, contribution %, and sorting.
+  - FE-wise failure analysis with failed pickups out of total mapped pickups and sorting; displayed on click.
+  - KPI labels: Not picked and Failure.
+- Success tab:
+  - Uses only Status = Picked Up.
+  - Client-wise pickup list.
+  - PUR ID trend.
+  - Weight trend.
+  - Weight shown in KG and Tons.
+  - Dispatch ID-wise PUR mapping.
+- Re-upload Raw Data replaces the current dataset.
+- Confirmed failure logic:
+  1. Status = Not Picked.
+  2. Exclude OTP/Geofence when In Slot = Yes.
+  3. Exclude Shipment not ready for pickup-Multi client Seller Partial handover.
+  4. Exclude Client = FEDEX EXPORT.
