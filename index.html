@@ -140,7 +140,14 @@ function parseDateValue(v){
  let m=s.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})/); if(m){let y=+m[3];if(y<100)y+=2000;return `${y}-${String(+m[2]).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`}; return s;
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
-function num(v){if(v==null||v==='')return 0; let n=Number(String(v).replace(/,/g,'')); return isNaN(n)?0:n}
+function num(v){
+  if(v==null||v==='')return 0;
+  if(typeof v==='number'&&isFinite(v))return v;
+  let s=String(v).trim().replace(/,/g,'').replace(/kg/ig,'').replace(/kgs/ig,'').trim();
+  s=s.replace(/[^0-9.\-]/g,'');
+  let n=Number(s);
+  return isFinite(n)?n:0;
+}
 function headersMap(obj){return Object.keys(obj)}
 function getVal(r,headers,...names){for(const n of names){let h=headers.find(x=>lower(x)===lower(n));if(h!==undefined)return r[h]}return ''}
 function compactRow(r,centre,headers){
@@ -199,12 +206,21 @@ function sortList(arr, mode){
   return b.v-a.v;
  });
 }
+function uniquePURRows(rows){
+  const seen=new Set(), out=[];
+  rows.forEach((r,i)=>{
+    const id=r.pickupId.trim();
+    const key=id?`PUR:${id}`:`ROW:${r.centre}:${i}`;
+    if(!seen.has(key)){seen.add(key);out.push(r)}
+  });
+  return out;
+}
 function renderFailure(rows){
  const np=rows.filter(r=>lower(r.status)==='not picked'), adj=np.filter(isFailure), picked=rows.filter(r=>lower(r.status)==='picked up').length;
  const otp=np.filter(r=>['yes','true','1','1.0'].includes(lower(r.inSlot))&&/OTP|Geofence/i.test(r.remarks)).length;
  const multi=np.filter(r=>/Shipment not ready for pickup-Multi client Seller Partial handover/i.test(r.remarks)).length;
  const fedex=np.filter(r=>r.client.toUpperCase()==='FEDEX EXPORT').length;
- fTotal.textContent=fmt(rows.length);fRaw.textContent=fmt(np.length);fAdj.textContent=fmt(adj.length);fPicked.textContent=fmt(picked);fPct.textContent=(rows.length?adj.length/rows.length*100:0).toFixed(1)+'%';
+ fTotal.textContent=fmt(purRows.length);fRaw.textContent=fmt(np.length);fAdj.textContent=fmt(adj.length);fPicked.textContent=fmt(picked);fPct.textContent=(purRows.length?adj.length/purRows.length*100:0).toFixed(1)+'%';
  xOtp.textContent=fmt(otp);xMulti.textContent=fmt(multi);xFedex.textContent=fmt(fedex);
 
  const byReason=group(adj,'remarks').map(x=>({...x,pct:adj.length?x.v/adj.length*100:0}));
@@ -227,10 +243,10 @@ function renderFailure(rows){
 function renderSuccess(rows){
  const pu=rows.filter(r=>lower(r.status)==='picked up');
  const totalWeight=pu.reduce((s,r)=>s+r.weight,0);
- sPur.textContent=fmt(pu.length);sWeight.textContent=fmt(totalWeight)+' KG';sWeightTons.textContent=fmt(totalWeight/1000)+' Tons';sClients.textContent=fmt(new Set(pu.map(r=>r.client)).size);sDispatch.textContent=fmt(new Set(pu.map(r=>r.dispatchId).filter(Boolean)).size);sAvgWeight.textContent=fmt(pu.length?totalWeight/pu.length:0);
+ sPur.textContent=fmt(pu.length);sWeight.textContent=totalWeight.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' KG';sWeightTons.textContent=(totalWeight/1000).toLocaleString('en-IN',{minimumFractionDigits:3,maximumFractionDigits:3})+' Tons';sClients.textContent=fmt(new Set(pu.map(r=>r.client)).size);sDispatch.textContent=fmt(new Set(pu.map(r=>r.dispatchId).filter(Boolean)).size);sAvgWeight.textContent=(pu.length?totalWeight/pu.length:0).toFixed(2)+' KG';
 
  const clients={};pu.forEach(r=>{let k=r.client||'Not Specified';if(!clients[k])clients[k]={n:0,w:0};clients[k].n++;clients[k].w+=r.weight});
- successClientTable.innerHTML=Object.entries(clients).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${fmt(v.n)}</td><td>${fmt(v.w)}</td><td>${fmt(v.w/1000)}</td><td>${pu.length?(v.n/pu.length*100).toFixed(1):0}%</td></tr>`).join('');
+ successClientTable.innerHTML=Object.entries(clients).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${fmt(v.n)}</td><td>${v.w.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${(v.w/1000).toLocaleString('en-IN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td><td>${pu.length?(v.n/pu.length*100).toFixed(1):0}%</td></tr>`).join('');
 
  const dates={};pu.forEach(r=>{let d=r.date||'No Date';if(!dates[d])dates[d]={n:0,w:0};dates[d].n++;dates[d].w+=r.weight});
  const ds=Object.keys(dates).sort();
@@ -239,7 +255,7 @@ function renderSuccess(rows){
  charts.weight=new Chart(document.getElementById('weightTrendChart'),{type:'line',data:{labels:ds,datasets:[{data:ds.map(d=>dates[d].w),tension:.25,borderWidth:2,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});
 
  const dispatch={};pu.forEach(r=>{let k=r.dispatchId||'Not Mapped';if(!dispatch[k])dispatch[k]={n:0,w:0,purs:[]};dispatch[k].n++;dispatch[k].w+=r.weight;if(r.pickupId)dispatch[k].purs.push(r.pickupId)});
- dispatchTable.innerHTML=Object.entries(dispatch).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${fmt(v.n)}</td><td>${fmt(v.w)}</td><td>${fmt(v.w/1000)}</td><td>${esc(v.purs.join(', '))}</td></tr>`).join('');
+ dispatchTable.innerHTML=Object.entries(dispatch).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${fmt(v.n)}</td><td>${v.w.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${(v.w/1000).toLocaleString('en-IN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td><td>${esc(v.purs.join(', '))}</td></tr>`).join('');
 }
 function render(){
  const rows=currentRows();renderFailure(rows);renderSuccess(rows);

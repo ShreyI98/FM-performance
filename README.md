@@ -22,3 +22,11 @@
   2. Exclude OTP/Geofence when In Slot = Yes.
   3. Exclude Shipment not ready for pickup-Multi client Seller Partial handover.
   4. Exclude Client = FEDEX EXPORT.
+
+
+## Counting and weight rules
+- Total PUR is counted using unique `Pickup Id` values; blank IDs are counted by source row.
+- Picked Up PUR uses unique PURs with `Status = Picked Up`.
+- Weight is read from the raw `Weight` column as kilograms, summed once per unique PUR.
+- Tons = KG / 1000.
+- Weight parsing accepts numeric Excel values and text values containing commas or KG.
