@@ -1,18 +1,16 @@
 # FM Pickup Operations Dashboard
 
-A GitHub Pages-ready static dashboard generated from the supplied pickup workbook.
+GitHub Pages dashboard supporting two raw-data sources:
 
-## Dashboard
-- Total PUR / Picked Up / Raw Not Picked / Adjusted Failures
-- Adjusted failure percentage
-- Centre-wise failures
-- Failure reason analysis
-- Daily trend
-- Top clients by adjusted failures
-- Transparent exclusion logic
+- Live Google Sheets URL
+- Local Excel (`.xlsx`, `.xls`) or CSV upload
 
-## Privacy
-The published dashboard contains aggregate operational data only. Shipment IDs, phone numbers, addresses and employee names are not included.
+For Google Sheets, the sheet must be shared as **Anyone with the link → Viewer** (or published to the web). Excel/CSV files are processed locally in the browser.
 
-## GitHub Pages
-Set GitHub Pages to deploy from the `main` branch root. The entry point is `index.html`.
+## Failure logic
+Adjusted failures are calculated from `Status = Not Picked`, excluding:
+- OTP/Geofence remarks when `In Slot = Yes`
+- `Shipment not ready for pickup-Multi client Seller Partial handover`
+- `Client = FEDEX EXPORT`
+
+No raw sheet/file rows are uploaded to a server by the dashboard.
