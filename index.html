@@ -37,206 +37,202 @@ table{width:100%;border-collapse:collapse;font-size:11px}th,td{text-align:left;p
 .empty{background:#fff;border:1px solid var(--line);border-radius:11px;padding:30px;text-align:center;color:var(--muted)}
 @media(max-width:1050px){.grid{grid-template-columns:repeat(2,1fr)}.panelgrid{grid-template-columns:1fr}}
 @media(max-width:600px){.wrap{padding:12px}.grid{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}.control,.datebox{min-width:100%}}
+.tabs{display:flex;gap:7px;margin-bottom:15px}.tab{border:1px solid var(--line);background:#fff;color:var(--muted);padding:10px 18px;border-radius:8px;font-weight:700;cursor:pointer}.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}.scroll{max-height:280px;overflow:auto}.fePanel{min-height:auto;margin-bottom:15px}.feHeader{display:flex;justify-content:space-between;align-items:center;gap:10px}.smallBtn{border:1px solid #ccd6df;background:#fff;color:var(--accent);border-radius:7px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer}.muted{font-size:11px;color:var(--muted)}
 </style>
 </head>
 <body>
 <div class="wrap">
 <header>
-<div><h1>FM Pickup Performance Dashboard</h1><div class="sub">All centre sheets • multi-date analysis • adjusted pickup failure logic</div></div>
-<div style="display:flex;align-items:center;gap:8px"><button id="reuploadBtn" class="reupload hidden" onclick="document.getElementById('fileInput').click()">↻ Re-upload Raw Data</button><div class="badge" id="dataBadge">Awaiting Data</div></div>
+<div><h1>FM Pickup Performance Dashboard</h1><div class="sub">All centre sheets • multi-date analysis</div></div>
+<div style="display:flex;align-items:center;gap:8px">
+<button id="reuploadBtn" class="reupload hidden" onclick="document.getElementById('fileInput').click()">↻ Re-upload Raw Data</button>
+<div class="badge" id="dataBadge">Awaiting Data</div></div>
 </header>
 
 <section class="source" id="sourcePanel">
 <h2>Load Raw Data</h2>
-<p>Upload the raw <b>Excel (.xlsx/.xls)</b> or <b>CSV</b> file once. <b>Every worksheet is mandatory and is treated as a separate centre.</b> After successful loading, this upload panel disappears and the processed data is saved in this browser for the dashboard.</p>
+<p>Upload the raw <b>Excel (.xlsx/.xls)</b> or <b>CSV</b> file once. <b>Every worksheet is mandatory and is treated as a separate centre.</b></p>
 <input id="fileInput" type="file" accept=".xlsx,.xls,.csv">
 <div id="loadStatus" class="status"></div>
 </section>
 
 <div id="app" class="hidden">
 <div class="controls">
-<div class="control"><label>CENTRE</label><select id="centreSelect" multiple size="1"></select></div>
-<div class="control datebox"><label>DATE — MULTI-SELECT</label><input id="dateInput" type="date"><div class="date-help">Pick a date, then repeat to add multiple dates.</div><div class="date-list" id="dateList"></div></div>
-<div class="control"><label>STATUS VIEW</label><select id="viewSelect"><option value="all">All Records</option><option value="failures">Adjusted Failures Only</option></select></div>
+<div class="control"><label>CENTRE</label><select id="centreSelect"></select></div>
+<div class="control datebox"><label>DATE — MULTI-SELECT</label><input id="dateInput" type="date"><div class="date-help">Pick dates one by one to add multiple dates.</div><div class="date-list" id="dateList"></div></div>
 </div>
 
+<div class="tabs">
+<button class="tab active" id="failureTab" onclick="switchTab('failure')">Failure Analysis</button>
+<button class="tab" id="successTab" onclick="switchTab('success')">Pickup Success Analysis</button>
+</div>
+
+<section id="failureView">
 <div class="grid">
-<div class="card"><div class="klabel">Total PUR</div><div class="kpi" id="totalPUR">0</div></div>
-<div class="card"><div class="klabel">Picked Up</div><div class="kpi" id="pickedUp">0</div></div>
-<div class="card"><div class="klabel">Raw Not Picked</div><div class="kpi" id="rawNotPicked">0</div></div>
-<div class="card"><div class="klabel">Adjusted Failures</div><div class="kpi" id="adjustedFailures">0</div></div>
-<div class="card"><div class="klabel">Adjusted Failure %</div><div class="kpi" id="failurePct">0.0%</div><div class="small">Adjusted failures ÷ Total PUR</div></div>
+<div class="card"><div class="klabel">Total PUR</div><div class="kpi" id="fTotal">0</div></div>
+<div class="card"><div class="klabel">Raw Not Picked</div><div class="kpi" id="fRaw">0</div></div>
+<div class="card"><div class="klabel">Adjusted Failures</div><div class="kpi" id="fAdj">0</div></div>
+<div class="card"><div class="klabel">Adjusted Failure %</div><div class="kpi" id="fPct">0.0%</div></div>
+<div class="card"><div class="klabel">Picked Up</div><div class="kpi" id="fPicked">0</div></div>
 </div>
-
 <div class="logic">
 <strong>Failure Logic</strong>
 <div class="logicrow">
-<span>Start: Status = Not Picked</span>
-<span>Exclude OTP/Geofence when In Slot = Yes: <b id="xOtp">0</b></span>
+<span>Status = Not Picked</span>
+<span>Exclude OTP/Geofence + In Slot = Yes: <b id="xOtp">0</b></span>
 <span>Exclude Multi-client Partial Handover: <b id="xMulti">0</b></span>
 <span>Exclude FEDEX EXPORT: <b id="xFedex">0</b></span>
 </div>
 </div>
-
 <div class="panelgrid">
-<section class="panel"><h2>Failures by Centre</h2><div class="canvasbox"><canvas id="centreChart"></canvas></div></section>
-<section class="panel"><h2>Failure Reasons</h2><div class="canvasbox"><canvas id="reasonChart"></canvas></div></section>
-<section class="panel"><h2>Date-wise Failure Trend</h2><div class="canvasbox"><canvas id="dateChart"></canvas></div></section>
-<section class="panel"><h2>Top Clients by Adjusted Failures</h2><div class="canvasbox"><canvas id="clientChart"></canvas></div></section>
+<section class="panel"><h2>All Failure Reasons</h2><div class="canvasbox"><canvas id="reasonChart"></canvas></div></section>
+<section class="panel"><h2>Client-wise Failure Analysis</h2><div class="scroll"><table><thead><tr><th>Client</th><th>Failures</th><th>% Contribution</th></tr></thead><tbody id="clientFailureTable"></tbody></table></div></section>
 </div>
-
-<section class="panel" style="min-height:auto;margin-bottom:15px">
-<h2>Top Failure Reasons</h2>
-<table><thead><tr><th>Reason</th><th>Count</th><th>Contribution</th></tr></thead><tbody id="reasonTable"></tbody></table>
+<section class="panel fePanel">
+<div class="feHeader"><h2>FE-wise Failure Trend</h2><button class="smallBtn" onclick="toggleFE()">Show / Hide FE Analysis</button></div>
+<div id="feView" class="hidden">
+<p class="muted">Failure = adjusted failure. Mapped pickup = PUR mapped to the FE through the <b>Assigned FEs</b> field. For each FE, the view shows failed pickups out of total mapped pickups.</p>
+<div class="scroll"><table><thead><tr><th>FE</th><th>Total Mapped Pickup</th><th>Failed Pickup</th><th>Success Pickup</th><th>Failure %</th></tr></thead><tbody id="feTable"></tbody></table></div>
+</div>
 </section>
-<div class="footer">Data is processed in this browser. All worksheets in the uploaded workbook are included; worksheet name is treated as the centre. No raw file is uploaded to GitHub by this dashboard.</div>
+</section>
+
+<section id="successView" class="hidden">
+<div class="grid">
+<div class="card"><div class="klabel">Picked Up PUR</div><div class="kpi" id="sPur">0</div></div>
+<div class="card"><div class="klabel">Total Weight</div><div class="kpi" id="sWeight">0</div><div class="small">Weight as available in raw data</div></div>
+<div class="card"><div class="klabel">Clients</div><div class="kpi" id="sClients">0</div></div>
+<div class="card"><div class="klabel">Dispatch IDs</div><div class="kpi" id="sDispatch">0</div></div>
+<div class="card"><div class="klabel">Avg Weight / PUR</div><div class="kpi" id="sAvgWeight">0</div></div>
+</div>
+<div class="panelgrid">
+<section class="panel"><h2>Client-wise Pickup Success</h2><div class="scroll"><table><thead><tr><th>Client</th><th>Picked Up PUR</th><th>Weight</th><th>% of Picked Up PUR</th></tr></thead><tbody id="successClientTable"></tbody></table></div></section>
+<section class="panel"><h2>PUR ID Trend</h2><div class="canvasbox"><canvas id="purTrendChart"></canvas></div></section>
+<section class="panel"><h2>Weight Trend</h2><div class="canvasbox"><canvas id="weightTrendChart"></canvas></div></section>
+<section class="panel"><h2>Dispatch ID-wise PUR Mapping</h2><div class="scroll"><table><thead><tr><th>Dispatch ID</th><th>PUR Count</th><th>Total Weight</th><th>PUR IDs</th></tr></thead><tbody id="dispatchTable"></tbody></table></div></section>
+</div>
+</section>
+<footer class="footer">All workbook sheets are treated as centres. Data is processed in the browser. Re-upload replaces the current dataset.</footer>
 </div>
 </div>
 
 <script>
-const KEY='fm_pickup_dashboard_v3';
-let data=[];
-let charts={};
-let selectedDates=[];
+const KEY='fm_pickup_dashboard_v4';
+let data=[], selectedDates=[], charts={};
 
-const fmt=n=>new Intl.NumberFormat('en-IN').format(n);
+const fmt=n=>new Intl.NumberFormat('en-IN',{maximumFractionDigits:2}).format(n||0);
 const norm=v=>String(v??'').trim();
 const lower=v=>norm(v).toLowerCase();
-
 function parseDateValue(v){
-  if(v==null||v==='') return '';
-  if(typeof v==='number'){
-    const d=XLSX.SSF.parse_date_code(v);
-    if(d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
-  }
-  const s=norm(v);
-  let d=new Date(s);
-  if(!isNaN(d)) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const m=s.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})/);
-  if(m){let y=+m[3];if(y<100)y+=2000;return `${y}-${String(+m[2]).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`}
-  return s;
-}
-
-function compactRow(r, centre, headers){
-  const get=(...names)=>{for(const n of names){const h=headers.find(x=>lower(x)===lower(n));if(h!==undefined)return r[h]}return ''};
-  return {
-    centre: centre,
-    status:norm(get('Status')),
-    remarks:norm(get('Remarks')),
-    inSlot:norm(get('In Slot')),
-    client:norm(get('Client')),
-    date:parseDateValue(get('Pickup Request Creation Date','Pickup Date','Date')),
-    product:norm(get('Product Type'))
-  };
-}
-
-document.getElementById('fileInput').addEventListener('change', async e=>{
-  const file=e.target.files[0]; if(!file)return;
-  const st=document.getElementById('loadStatus'); st.className='status'; st.textContent='Reading all sheets…';
-  try{
-    const buf=await file.arrayBuffer();
-    let rows=[];
-    if(file.name.toLowerCase().endsWith('.csv')){
-      const wb=XLSX.read(buf,{type:'array'});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      const raw=XLSX.utils.sheet_to_json(ws,{defval:''});
-      const headers=Object.keys(raw[0]||{});
-      rows=raw.map(r=>compactRow(r,'CSV',headers));
-    }else{
-      const wb=XLSX.read(buf,{type:'array',cellDates:true});
-      for(const sheet of wb.SheetNames){
-        const ws=wb.Sheets[sheet];
-        const raw=XLSX.utils.sheet_to_json(ws,{defval:''});
-        if(!raw.length) continue;
-        const headers=Object.keys(raw[0]);
-        rows.push(...raw.map(r=>compactRow(r,sheet,headers)));
-      }
-    }
-    if(!rows.length) throw new Error('No usable rows found.');
-    data=rows;
-    selectedDates=[];
-    localStorage.setItem(KEY,JSON.stringify(data));
-    finishLoad();
-    st.className='status ok'; st.textContent=`Loaded ${fmt(data.length)} rows across ${new Set(data.map(x=>x.centre)).size} centre sheet(s).`;
-  }catch(err){st.className='status err';st.textContent='Unable to read file: '+err.message}
-});
-
-function finishLoad(){
-  document.getElementById('sourcePanel').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-  document.getElementById('reuploadBtn').classList.remove('hidden');
-  document.getElementById('dataBadge').textContent=`${new Set(data.map(x=>x.centre)).size} Centres Loaded`;
-  setupControls(); render();
-}
-
-function setupControls(){
-  const cs=document.getElementById('centreSelect');
-  const centres=[...new Set(data.map(x=>x.centre))].sort();
-  cs.innerHTML='';
-  centres.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;cs.appendChild(o)});
-  cs.addEventListener('change',render);
-  document.getElementById('viewSelect').addEventListener('change',render);
-  document.getElementById('dateInput').addEventListener('change',e=>{
-    if(e.target.value&&!selectedDates.includes(e.target.value)) selectedDates.push(e.target.value);
-    e.target.value=''; renderDateChips(); render();
-  });
-}
-
-function renderDateChips(){
-  const el=document.getElementById('dateList');
-  el.innerHTML=selectedDates.map(d=>`<span class="date-chip">${d} ×</span>`).join('');
-  [...el.children].forEach((chip,i)=>chip.onclick=()=>{selectedDates.splice(i,1);renderDateChips();render()});
-}
-
-function currentRows(){
-  const centres=[...document.getElementById('centreSelect').selectedOptions].map(o=>o.value);
-  return data.filter(r=>(!centres.length||centres.includes(r.centre))&&(!selectedDates.length||selectedDates.includes(r.date)));
-}
-
-function isAdjustedFailure(r){
-  if(lower(r.status)!=='not picked') return false;
-  const slot=['yes','true','1','1.0'].includes(lower(r.inSlot));
-  if(slot&&/OTP|Geofence/i.test(r.remarks))return false;
-  if(/Shipment not ready for pickup-Multi client Seller Partial handover/i.test(r.remarks))return false;
-  if(r.client.toUpperCase()==='FEDEX EXPORT')return false;
-  return true;
-}
-
-function group(rows,key,limit=50){
-  const m={}; rows.forEach(r=>{const k=norm(r[key])||'Not Specified';m[k]=(m[k]||0)+1});
-  return Object.entries(m).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,limit);
-}
-
-function render(){
-  const rows=currentRows(), np=rows.filter(r=>lower(r.status)==='not picked'), adj=np.filter(isAdjustedFailure);
-  const picked=rows.filter(r=>lower(r.status)==='picked up').length;
-  const otp=np.filter(r=>['yes','true','1','1.0'].includes(lower(r.inSlot))&&/OTP|Geofence/i.test(r.remarks)).length;
-  const multi=np.filter(r=>/Shipment not ready for pickup-Multi client Seller Partial handover/i.test(r.remarks)).length;
-  const fedex=np.filter(r=>r.client.toUpperCase()==='FEDEX EXPORT').length;
-
-  document.getElementById('totalPUR').textContent=fmt(rows.length);
-  document.getElementById('pickedUp').textContent=fmt(picked);
-  document.getElementById('rawNotPicked').textContent=fmt(np.length);
-  document.getElementById('adjustedFailures').textContent=fmt(adj.length);
-  document.getElementById('failurePct').textContent=(rows.length?adj.length/rows.length*100:0).toFixed(1)+'%';
-  document.getElementById('xOtp').textContent=fmt(otp);document.getElementById('xMulti').textContent=fmt(multi);document.getElementById('xFedex').textContent=fmt(fedex);
-
-  const byCentre=group(adj,'centre'),byReason=group(adj,'remarks'),byClient=group(adj,'client',15),byDate=group(adj,'date',100).sort((a,b)=>a.k.localeCompare(b.k));
-  Object.values(charts).forEach(c=>c.destroy());
-  const common={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
-  charts.centre=new Chart(document.getElementById('centreChart'),{type:'bar',data:{labels:byCentre.map(x=>x.k),datasets:[{data:byCentre.map(x=>x.v)}]},options:{...common,indexAxis:'y',scales:{x:{beginAtZero:true}}}});
-  charts.reason=new Chart(document.getElementById('reasonChart'),{type:'doughnut',data:{labels:byReason.slice(0,8).map(x=>x.k),datasets:[{data:byReason.slice(0,8).map(x=>x.v)}]},options:{...common,plugins:{legend:{display:true,position:'right',labels:{boxWidth:12,font:{size:9}}}}}});
-  charts.date=new Chart(document.getElementById('dateChart'),{type:'line',data:{labels:byDate.map(x=>x.k),datasets:[{data:byDate.map(x=>x.v),tension:.25,borderWidth:2,pointRadius:3}]},options:{...common,scales:{y:{beginAtZero:true}}}});
-  charts.client=new Chart(document.getElementById('clientChart'),{type:'bar',data:{labels:byClient.slice(0,10).map(x=>x.k),datasets:[{data:byClient.slice(0,10).map(x=>x.v)}]},options:{...common,indexAxis:'y'}});
-
-  document.getElementById('reasonTable').innerHTML=byReason.slice(0,10).map(x=>`<tr><td>${esc(x.k)}</td><td>${fmt(x.v)}</td><td>${adj.length?(x.v/adj.length*100).toFixed(1):0}%</td></tr>`).join('');
+ if(v==null||v==='')return '';
+ if(v instanceof Date&&!isNaN(v))return `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`;
+ if(typeof v==='number'){try{let d=XLSX.SSF.parse_date_code(v);if(d)return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`}catch(e){}}
+ let s=norm(v), d=new Date(s); if(!isNaN(d))return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+ let m=s.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})/); if(m){let y=+m[3];if(y<100)y+=2000;return `${y}-${String(+m[2]).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`}; return s;
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+function num(v){if(v==null||v==='')return 0; let n=Number(String(v).replace(/,/g,'')); return isNaN(n)?0:n}
+function headersMap(obj){return Object.keys(obj)}
+function getVal(r,headers,...names){for(const n of names){let h=headers.find(x=>lower(x)===lower(n));if(h!==undefined)return r[h]}return ''}
+function compactRow(r,centre,headers){
+ return {
+  centre, pickupId:norm(getVal(r,headers,'Pickup Id')), client:norm(getVal(r,headers,'Client')),
+  status:norm(getVal(r,headers,'Status')), remarks:norm(getVal(r,headers,'Remarks')),
+  inSlot:norm(getVal(r,headers,'In Slot')), date:parseDateValue(getVal(r,headers,'Pickup Request Creation Date','Pickup Date','Date')),
+  dispatchId:norm(getVal(r,headers,'Dispatch ID')), weight:num(getVal(r,headers,'Weight')),
+  assignedFEs:norm(getVal(r,headers,'Assigned FEs'))
+ };
+}
+function isFailure(r){
+ if(lower(r.status)!=='not picked')return false;
+ if(['yes','true','1','1.0'].includes(lower(r.inSlot))&&/OTP|Geofence/i.test(r.remarks))return false;
+ if(/Shipment not ready for pickup-Multi client Seller Partial handover/i.test(r.remarks))return false;
+ if(r.client.toUpperCase()==='FEDEX EXPORT')return false;
+ return true;
+}
+function group(rows,key){
+ const m={};rows.forEach(r=>{let k=norm(r[key])||'Not Specified';m[k]=(m[k]||0)+1});return Object.entries(m).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v)
+}
+function currentRows(){
+ const centre=document.getElementById('centreSelect').value;
+ return data.filter(r=>(!centre||r.centre===centre)&&(!selectedDates.length||selectedDates.includes(r.date)));
+}
+function setupControls(){
+ const cs=document.getElementById('centreSelect'); cs.innerHTML='<option value="">All Centres</option>';
+ [...new Set(data.map(r=>r.centre))].sort().forEach(c=>{let o=document.createElement('option');o.value=c;o.textContent=c;cs.appendChild(o)});
+ cs.onchange=render;
+ document.getElementById('dateInput').onchange=e=>{if(e.target.value&&!selectedDates.includes(e.target.value))selectedDates.push(e.target.value);e.target.value='';renderDateChips();render()};
+}
+function renderDateChips(){
+ const el=document.getElementById('dateList');el.innerHTML=selectedDates.map(d=>`<span class="date-chip" title="Remove">${d} ×</span>`).join('');
+ [...el.children].forEach((x,i)=>x.onclick=()=>{selectedDates.splice(i,1);renderDateChips();render()});
+}
+function switchTab(t){
+ document.getElementById('failureView').classList.toggle('hidden',t!=='failure');
+ document.getElementById('successView').classList.toggle('hidden',t!=='success');
+ document.getElementById('failureTab').classList.toggle('active',t==='failure');
+ document.getElementById('successTab').classList.toggle('active',t==='success');
+ render();
+}
+function toggleFE(){document.getElementById('feView').classList.toggle('hidden')}
 
-try{
-  const saved=localStorage.getItem(KEY);
-  if(saved){data=JSON.parse(saved);finishLoad();}
-}catch(e){localStorage.removeItem(KEY)}
+function renderFailure(rows){
+ const np=rows.filter(r=>lower(r.status)==='not picked'), adj=np.filter(isFailure), picked=rows.filter(r=>lower(r.status)==='picked up').length;
+ const otp=np.filter(r=>['yes','true','1','1.0'].includes(lower(r.inSlot))&&/OTP|Geofence/i.test(r.remarks)).length;
+ const multi=np.filter(r=>/Shipment not ready for pickup-Multi client Seller Partial handover/i.test(r.remarks)).length;
+ const fedex=np.filter(r=>r.client.toUpperCase()==='FEDEX EXPORT').length;
+ fTotal.textContent=fmt(rows.length);fRaw.textContent=fmt(np.length);fAdj.textContent=fmt(adj.length);fPicked.textContent=fmt(picked);fPct.textContent=(rows.length?adj.length/rows.length*100:0).toFixed(1)+'%';
+ xOtp.textContent=fmt(otp);xMulti.textContent=fmt(multi);xFedex.textContent=fmt(fedex);
+
+ const byReason=group(adj,'remarks'), byClient=group(adj,'client');
+ if(charts.reason)charts.reason.destroy();
+ charts.reason=new Chart(document.getElementById('reasonChart'),{type:'doughnut',data:{labels:byReason.slice(0,12).map(x=>x.k),datasets:[{data:byReason.slice(0,12).map(x=>x.v)}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'right',labels:{boxWidth:12,font:{size:9}}}}}});
+ clientFailureTable.innerHTML=byClient.map(x=>`<tr><td>${esc(x.k)}</td><td>${fmt(x.v)}</td><td>${adj.length?(x.v/adj.length*100).toFixed(1):0}%</td></tr>`).join('');
+
+ const feMap={};
+ adj.forEach(r=>{let names=r.assignedFEs.split(/[,;/|]+/).map(x=>x.trim()).filter(Boolean);names.forEach(fe=>{if(!feMap[fe])feMap[fe]={mapped:0,failed:0};feMap[fe].failed++})});
+ rows.forEach(r=>{let names=r.assignedFEs.split(/[,;/|]+/).map(x=>x.trim()).filter(Boolean);names.forEach(fe=>{if(!feMap[fe])feMap[fe]={mapped:0,failed:0};feMap[fe].mapped++})});
+ feTable.innerHTML=Object.entries(feMap).map(([fe,x])=>{let succ=x.mapped-x.failed;return `<tr><td>${esc(fe)}</td><td>${fmt(x.mapped)}</td><td>${fmt(x.failed)}</td><td>${fmt(succ)}</td><td>${x.mapped?(x.failed/x.mapped*100).toFixed(1):0}%</td></tr>`}).sort((a,b)=>b.localeCompare(a)).join('');
+}
+function renderSuccess(rows){
+ const pu=rows.filter(r=>lower(r.status)==='picked up');
+ const totalWeight=pu.reduce((s,r)=>s+r.weight,0);
+ sPur.textContent=fmt(pu.length);sWeight.textContent=fmt(totalWeight);sClients.textContent=fmt(new Set(pu.map(r=>r.client)).size);sDispatch.textContent=fmt(new Set(pu.map(r=>r.dispatchId).filter(Boolean)).size);sAvgWeight.textContent=fmt(pu.length?totalWeight/pu.length:0);
+
+ const clients={};pu.forEach(r=>{let k=r.client||'Not Specified';if(!clients[k])clients[k]={n:0,w:0};clients[k].n++;clients[k].w+=r.weight});
+ successClientTable.innerHTML=Object.entries(clients).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${fmt(v.n)}</td><td>${fmt(v.w)}</td><td>${pu.length?(v.n/pu.length*100).toFixed(1):0}%</td></tr>`).join('');
+
+ const dates={};pu.forEach(r=>{let d=r.date||'No Date';if(!dates[d])dates[d]={n:0,w:0};dates[d].n++;dates[d].w+=r.weight});
+ const ds=Object.keys(dates).sort();
+ if(charts.pur)charts.pur.destroy(); if(charts.weight)charts.weight.destroy();
+ charts.pur=new Chart(document.getElementById('purTrendChart'),{type:'line',data:{labels:ds,datasets:[{data:ds.map(d=>dates[d].n),tension:.25,borderWidth:2,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});
+ charts.weight=new Chart(document.getElementById('weightTrendChart'),{type:'line',data:{labels:ds,datasets:[{data:ds.map(d=>dates[d].w),tension:.25,borderWidth:2,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});
+
+ const dispatch={};pu.forEach(r=>{let k=r.dispatchId||'Not Mapped';if(!dispatch[k])dispatch[k]={n:0,w:0,purs:[]};dispatch[k].n++;dispatch[k].w+=r.weight;if(r.pickupId)dispatch[k].purs.push(r.pickupId)});
+ dispatchTable.innerHTML=Object.entries(dispatch).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${fmt(v.n)}</td><td>${fmt(v.w)}</td><td>${esc(v.purs.join(', '))}</td></tr>`).join('');
+}
+function render(){
+ const rows=currentRows();renderFailure(rows);renderSuccess(rows);
+}
+
+document.getElementById('fileInput').addEventListener('change',async e=>{
+ const file=e.target.files[0];if(!file)return;const st=document.getElementById('loadStatus');st.className='status';st.textContent='Reading all sheets…';
+ try{
+  const buf=await file.arrayBuffer(), wb=XLSX.read(buf,{type:'array',cellDates:true});let rows=[];
+  if(file.name.toLowerCase().endsWith('.csv')){
+   const ws=wb.Sheets[wb.SheetNames[0]],raw=XLSX.utils.sheet_to_json(ws,{defval:''}),h=Object.keys(raw[0]||{});rows=raw.map(r=>compactRow(r,'CSV',h));
+  }else{
+   for(const sheet of wb.SheetNames){const ws=wb.Sheets[sheet],raw=XLSX.utils.sheet_to_json(ws,{defval:''});if(!raw.length)continue;const h=Object.keys(raw[0]);rows.push(...raw.map(r=>compactRow(r,sheet,h)))}
+  }
+  if(!rows.length)throw new Error('No usable rows found.');
+  data=rows;selectedDates=[];localStorage.setItem(KEY,JSON.stringify(data));finishLoad();
+  st.className='status ok';st.textContent=`Loaded ${fmt(data.length)} rows across ${new Set(data.map(x=>x.centre)).size} centre sheet(s).`;
+ }catch(err){st.className='status err';st.textContent='Unable to read file: '+err.message}
+});
+function finishLoad(){
+ document.getElementById('sourcePanel').classList.add('hidden');document.getElementById('app').classList.remove('hidden');document.getElementById('reuploadBtn').classList.remove('hidden');
+ document.getElementById('dataBadge').textContent=`${new Set(data.map(x=>x.centre)).size} Centres Loaded`;setupControls();renderDateChips();render();
+}
+try{const saved=localStorage.getItem(KEY);if(saved){data=JSON.parse(saved);finishLoad()}}catch(e){localStorage.removeItem(KEY)}
 </script>
-</body>
-</html>
+</body></html>

@@ -1,23 +1,33 @@
 # FM Pickup Performance Dashboard
 
-## Data loading
-- First opening: upload the raw Excel/CSV file.
-- Every worksheet in an Excel workbook is loaded; each worksheet name is treated as a centre.
-- After loading, the upload panel is hidden.
-- A small **↻ Re-upload Raw Data** button appears beside the dashboard title.
-- Clicking it opens the file picker and replaces the current dataset.
-- Re-upload resets the selected centre/date filters and refreshes the dashboard.
-- The last processed dataset is retained in the browser so the dashboard can reopen without the large upload screen; use **Re-upload Raw Data** whenever the source file changes.
+## Tabs
+### Failure Analysis
+- All failure reasons
+- Client-wise failure list with failure count and % contribution
+- FE-wise failure analysis shown on demand with: total mapped pickup, failed pickup, success pickup and failure %
+- No failure-by-centre chart
 
-## Filters
-- Centre selector: select one or more centre sheets.
-- Date selector: add multiple dates and remove selected dates individually.
+### Pickup Success Analysis
+Uses only `Status = Picked Up` from the raw data and includes:
+- Client-wise success view
+- Weight
+- PUR count / PUR ID trend
+- Weight trend
+- Dispatch ID-wise PUR mapping with PUR IDs
 
-## Failure logic
-1. Start with `Status = Not Picked`.
-2. Exclude OTP/Geofence when `In Slot = Yes`.
-3. Exclude `Shipment not ready for pickup-Multi client Seller Partial handover`.
-4. Exclude `Client = FEDEX EXPORT`.
+### Filters
+- Centre selector (worksheet name = centre)
+- Multi-date selector
 
-## GitHub Pages
-Upload `index.html` and `README.md` to the repository root and deploy `main` / root through GitHub Pages.
+### Data loading
+- Excel: every non-empty worksheet is loaded and treated as a separate centre.
+- CSV: treated as a single `CSV` centre.
+- After first load, the upload panel is hidden.
+- `↻ Re-upload Raw Data` replaces the dataset and resets date filters.
+- The last processed dataset is stored locally in the browser for convenience.
+
+### Failure logic
+1. Status = Not Picked
+2. Exclude OTP/Geofence when In Slot = Yes
+3. Exclude Shipment not ready for pickup-Multi client Seller Partial handover
+4. Exclude Client = FEDEX EXPORT
