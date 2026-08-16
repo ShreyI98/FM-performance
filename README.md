@@ -1,16 +1,23 @@
-# FM Pickup Operations Dashboard
+# FM Pickup Performance Dashboard
 
-GitHub Pages dashboard supporting two raw-data sources:
+## Data loading
+- First opening: upload the raw Excel/CSV file.
+- Every worksheet in an Excel workbook is loaded; each worksheet name is treated as a centre.
+- After loading, the upload panel is hidden.
+- A small **↻ Re-upload Raw Data** button appears beside the dashboard title.
+- Clicking it opens the file picker and replaces the current dataset.
+- Re-upload resets the selected centre/date filters and refreshes the dashboard.
+- The last processed dataset is retained in the browser so the dashboard can reopen without the large upload screen; use **Re-upload Raw Data** whenever the source file changes.
 
-- Live Google Sheets URL
-- Local Excel (`.xlsx`, `.xls`) or CSV upload
-
-For Google Sheets, the sheet must be shared as **Anyone with the link → Viewer** (or published to the web). Excel/CSV files are processed locally in the browser.
+## Filters
+- Centre selector: select one or more centre sheets.
+- Date selector: add multiple dates and remove selected dates individually.
 
 ## Failure logic
-Adjusted failures are calculated from `Status = Not Picked`, excluding:
-- OTP/Geofence remarks when `In Slot = Yes`
-- `Shipment not ready for pickup-Multi client Seller Partial handover`
-- `Client = FEDEX EXPORT`
+1. Start with `Status = Not Picked`.
+2. Exclude OTP/Geofence when `In Slot = Yes`.
+3. Exclude `Shipment not ready for pickup-Multi client Seller Partial handover`.
+4. Exclude `Client = FEDEX EXPORT`.
 
-No raw sheet/file rows are uploaded to a server by the dashboard.
+## GitHub Pages
+Upload `index.html` and `README.md` to the repository root and deploy `main` / root through GitHub Pages.
