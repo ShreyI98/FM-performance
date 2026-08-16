@@ -30,3 +30,7 @@
 - Weight is read from the raw `Weight` column as kilograms, summed once per unique PUR.
 - Tons = KG / 1000.
 - Weight parsing accepts numeric Excel values and text values containing commas or KG.
+
+
+## v7 Fix
+Fixed dashboard rendering error and ensured unique PUR-based KPI and weight calculations.

@@ -216,7 +216,8 @@ function uniquePURRows(rows){
   return out;
 }
 function renderFailure(rows){
- const np=rows.filter(r=>lower(r.status)==='not picked'), adj=np.filter(isFailure), picked=rows.filter(r=>lower(r.status)==='picked up').length;
+ const purRows=uniquePURRows(rows);
+ const np=purRows.filter(r=>lower(r.status)==='not picked'), adj=np.filter(isFailure), picked=purRows.filter(r=>lower(r.status)==='picked up').length;
  const otp=np.filter(r=>['yes','true','1','1.0'].includes(lower(r.inSlot))&&/OTP|Geofence/i.test(r.remarks)).length;
  const multi=np.filter(r=>/Shipment not ready for pickup-Multi client Seller Partial handover/i.test(r.remarks)).length;
  const fedex=np.filter(r=>r.client.toUpperCase()==='FEDEX EXPORT').length;
@@ -231,7 +232,7 @@ function renderFailure(rows){
  clientFailureTable.innerHTML=byClient.map(x=>`<tr><td>${esc(x.k)}</td><td>${fmt(x.v)}</td><td>${x.pct.toFixed(1)}%</td></tr>`).join('');
 
  const feMap={};
- rows.forEach(r=>{let names=r.assignedFEs.split(/[,;/|]+/).map(x=>x.trim()).filter(Boolean);names.forEach(fe=>{if(!feMap[fe])feMap[fe]={mapped:0,failed:0};feMap[fe].mapped++;if(isFailure(r))feMap[fe].failed++})});
+ purRows.forEach(r=>{let names=r.assignedFEs.split(/[,;/|]+/).map(x=>x.trim()).filter(Boolean);names.forEach(fe=>{if(!feMap[fe])feMap[fe]={mapped:0,failed:0};feMap[fe].mapped++;if(isFailure(r))feMap[fe].failed++})});
  let feRows=Object.entries(feMap).map(([fe,x])=>({fe,...x,success:x.mapped-x.failed,pct:x.mapped?x.failed/x.mapped*100:0}));
  const fs=document.getElementById('feSort').value;
  feRows.sort((a,b)=>{
@@ -241,7 +242,7 @@ function renderFailure(rows){
  feTable.innerHTML=feRows.map(x=>`<tr><td>${esc(x.fe)}</td><td>${fmt(x.mapped)}</td><td>${fmt(x.failed)}</td><td>${fmt(x.success)}</td><td>${x.pct.toFixed(1)}%</td></tr>`).join('');
 }
 function renderSuccess(rows){
- const pu=rows.filter(r=>lower(r.status)==='picked up');
+ const pu=uniquePURRows(rows).filter(r=>lower(r.status)==='picked up');
  const totalWeight=pu.reduce((s,r)=>s+r.weight,0);
  sPur.textContent=fmt(pu.length);sWeight.textContent=totalWeight.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' KG';sWeightTons.textContent=(totalWeight/1000).toLocaleString('en-IN',{minimumFractionDigits:3,maximumFractionDigits:3})+' Tons';sClients.textContent=fmt(new Set(pu.map(r=>r.client)).size);sDispatch.textContent=fmt(new Set(pu.map(r=>r.dispatchId).filter(Boolean)).size);sAvgWeight.textContent=(pu.length?totalWeight/pu.length:0).toFixed(2)+' KG';
 
