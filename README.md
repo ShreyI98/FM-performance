@@ -1,36 +1,23 @@
 # FM Pickup Performance Dashboard
 
-- Failure Analysis and Pickup Success Analysis tabs.
-- All Excel worksheets are loaded and each worksheet name is treated as a centre.
-- Centre selection and a smooth From/To date-range selection are applied to both tabs.
-- Filters are applied only after clicking **Refresh Dashboard**.
-- Failure tab:
-  - Failure reason list with count, contribution %, and sorting.
-  - Client-wise failure list with count, contribution %, and sorting.
-  - FE-wise failure analysis with failed pickups out of total mapped pickups and sorting; displayed on click.
-  - KPI labels: Not picked and Failure.
-- Success tab:
-  - Uses only Status = Picked Up.
-  - Client-wise pickup list.
-  - PUR ID trend.
-  - Weight trend.
-  - Weight shown in KG and Tons.
-  - Dispatch ID-wise PUR mapping.
-- Re-upload Raw Data replaces the current dataset.
-- Confirmed failure logic:
-  1. Status = Not Picked.
-  2. Exclude OTP/Geofence when In Slot = Yes.
-  3. Exclude Shipment not ready for pickup-Multi client Seller Partial handover.
-  4. Exclude Client = FEDEX EXPORT.
+### Weight calculation
+The raw workbook can contain multiple rows for the same PUR. The dashboard first groups raw rows by **Centre + Pickup Id (PUR)** and calculates:
 
+**PUR Weight (KG) = SUM of every raw `Weight` column value belonging to that PUR.**
 
-## Counting and weight rules
-- Total PUR is counted using unique `Pickup Id` values; blank IDs are counted by source row.
-- Picked Up PUR uses unique PURs with `Status = Picked Up`.
-- Weight is read from the raw `Weight` column as kilograms, summed once per unique PUR.
-- Tons = KG / 1000.
-- Weight parsing accepts numeric Excel values and text values containing commas or KG.
+The resulting PUR-level weight is then used everywhere:
+- Pickup Success total weight
+- KG / Tons
+- Client-wise weight
+- Date-wise weight trend
+- Dispatch ID-wise mapped PUR weight
 
+A PUR is counted once in PUR counts. Dispatch IDs contain/club multiple PURs; dispatch-level weight is the sum of the already-calculated PUR weights.
 
-## v7 Fix
-Fixed dashboard rendering error and ensured unique PUR-based KPI and weight calculations.
+All non-empty Excel worksheets are treated as separate centres.
+
+Failure logic:
+1. Status = Not Picked
+2. Exclude OTP/Geofence when In Slot = Yes
+3. Exclude Shipment not ready for pickup-Multi client Seller Partial handover
+4. Exclude Client = FEDEX EXPORT

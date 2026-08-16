@@ -126,7 +126,7 @@ table{width:100%;border-collapse:collapse;font-size:11px}th,td{text-align:left;p
 </div>
 
 <script>
-const KEY='fm_pickup_dashboard_v4';
+const KEY='fm_pickup_dashboard_v8';
 let data=[], charts={}, appliedCentre='', appliedFrom='', appliedTo='';
 
 const fmt=n=>new Intl.NumberFormat('en-IN',{maximumFractionDigits:2}).format(n||0);
@@ -159,6 +159,28 @@ function compactRow(r,centre,headers){
   assignedFEs:norm(getVal(r,headers,'Assigned FEs'))
  };
 }
+
+function aggregateByPUR(rows){
+ const groups=new Map();
+ for(const r of rows){
+   const key=(r.centre||'')+'||'+(r.pickupId||'__ROW_'+Math.random());
+   if(!groups.has(key)){
+     groups.set(key,{...r,weight:0});
+   }
+   const g=groups.get(key);
+   // Weight is the sum of every raw Weight-cell value belonging to this PUR.
+   g.weight += Number.isFinite(r.weight) ? r.weight : 0;
+   if(!g.status && r.status) g.status=r.status;
+   if(!g.client && r.client) g.client=r.client;
+   if(!g.date && r.date) g.date=r.date;
+   if(!g.dispatchId && r.dispatchId) g.dispatchId=r.dispatchId;
+   if(!g.remarks && r.remarks) g.remarks=r.remarks;
+   if(!g.inSlot && r.inSlot) g.inSlot=r.inSlot;
+   if(!g.assignedFEs && r.assignedFEs) g.assignedFEs=r.assignedFEs;
+ }
+ return [...groups.values()];
+}
+
 function isFailure(r){
  if(lower(r.status)!=='not picked')return false;
  if(['yes','true','1','1.0'].includes(lower(r.inSlot))&&/OTP|Geofence/i.test(r.remarks))return false;
@@ -221,15 +243,15 @@ function renderFailure(rows){
  const otp=np.filter(r=>['yes','true','1','1.0'].includes(lower(r.inSlot))&&/OTP|Geofence/i.test(r.remarks)).length;
  const multi=np.filter(r=>/Shipment not ready for pickup-Multi client Seller Partial handover/i.test(r.remarks)).length;
  const fedex=np.filter(r=>r.client.toUpperCase()==='FEDEX EXPORT').length;
- fTotal.textContent=fmt(purRows.length);fRaw.textContent=fmt(np.length);fAdj.textContent=fmt(adj.length);fPicked.textContent=fmt(picked);fPct.textContent=(purRows.length?adj.length/purRows.length*100:0).toFixed(1)+'%';
- xOtp.textContent=fmt(otp);xMulti.textContent=fmt(multi);xFedex.textContent=fmt(fedex);
+ document.getElementById('fTotal').textContent=fmt(purRows.length);document.getElementById('fRaw').textContent=fmt(np.length);document.getElementById('fAdj').textContent=fmt(adj.length);document.getElementById('fPicked').textContent=fmt(picked);document.getElementById('fPct').textContent=(purRows.length?adj.length/purRows.length*100:0).toFixed(1)+'%';
+ document.getElementById('xOtp').textContent=fmt(otp);document.getElementById('xMulti').textContent=fmt(multi);document.getElementById('xFedex').textContent=fmt(fedex);
 
  const byReason=group(adj,'remarks').map(x=>({...x,pct:adj.length?x.v/adj.length*100:0}));
  const byClient=group(adj,'client').map(x=>({...x,pct:adj.length?x.v/adj.length*100:0}));
  sortList(byReason,document.getElementById('reasonSort').value);
  sortList(byClient,document.getElementById('clientSort').value);
- reasonTable.innerHTML=byReason.map(x=>`<tr><td>${esc(x.k)}</td><td>${fmt(x.v)}</td><td>${x.pct.toFixed(1)}%</td></tr>`).join('');
- clientFailureTable.innerHTML=byClient.map(x=>`<tr><td>${esc(x.k)}</td><td>${fmt(x.v)}</td><td>${x.pct.toFixed(1)}%</td></tr>`).join('');
+ document.getElementById('reasonTable').innerHTML=byReason.map(x=>`<tr><td>${esc(x.k)}</td><td>${fmt(x.v)}</td><td>${x.pct.toFixed(1)}%</td></tr>`).join('');
+ document.getElementById('clientFailureTable').innerHTML=byClient.map(x=>`<tr><td>${esc(x.k)}</td><td>${fmt(x.v)}</td><td>${x.pct.toFixed(1)}%</td></tr>`).join('');
 
  const feMap={};
  purRows.forEach(r=>{let names=r.assignedFEs.split(/[,;/|]+/).map(x=>x.trim()).filter(Boolean);names.forEach(fe=>{if(!feMap[fe])feMap[fe]={mapped:0,failed:0};feMap[fe].mapped++;if(isFailure(r))feMap[fe].failed++})});
@@ -239,15 +261,15 @@ function renderFailure(rows){
    if(fs==='failurePctAsc')return a.pct-b.pct;if(fs==='failedDesc')return b.failed-a.failed;if(fs==='failedAsc')return a.failed-b.failed;
    if(fs==='mappedDesc')return b.mapped-a.mapped;if(fs==='mappedAsc')return a.mapped-b.mapped;if(fs==='nameAsc')return a.fe.localeCompare(b.fe);if(fs==='nameDesc')return b.fe.localeCompare(a.fe);return b.pct-a.pct;
  });
- feTable.innerHTML=feRows.map(x=>`<tr><td>${esc(x.fe)}</td><td>${fmt(x.mapped)}</td><td>${fmt(x.failed)}</td><td>${fmt(x.success)}</td><td>${x.pct.toFixed(1)}%</td></tr>`).join('');
+ document.getElementById('feTable').innerHTML=feRows.map(x=>`<tr><td>${esc(x.fe)}</td><td>${fmt(x.mapped)}</td><td>${fmt(x.failed)}</td><td>${fmt(x.success)}</td><td>${x.pct.toFixed(1)}%</td></tr>`).join('');
 }
 function renderSuccess(rows){
- const pu=uniquePURRows(rows).filter(r=>lower(r.status)==='picked up');
- const totalWeight=pu.reduce((s,r)=>s+r.weight,0);
- sPur.textContent=fmt(pu.length);sWeight.textContent=totalWeight.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' KG';sWeightTons.textContent=(totalWeight/1000).toLocaleString('en-IN',{minimumFractionDigits:3,maximumFractionDigits:3})+' Tons';sClients.textContent=fmt(new Set(pu.map(r=>r.client)).size);sDispatch.textContent=fmt(new Set(pu.map(r=>r.dispatchId).filter(Boolean)).size);sAvgWeight.textContent=(pu.length?totalWeight/pu.length:0).toFixed(2)+' KG';
+ const pu=rows.filter(r=>lower(r.status)==='picked up');
+ const totalWeight=pu.reduce((s,r)=>s+(Number.isFinite(r.weight)?r.weight:0),0);
+ document.getElementById('sPur').textContent=fmt(pu.length);document.getElementById('sWeight').textContent=totalWeight.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' KG';document.getElementById('sWeightTons').textContent=(totalWeight/1000).toLocaleString('en-IN',{minimumFractionDigits:3,maximumFractionDigits:3})+' Tons';document.getElementById('sClients').textContent=fmt(new Set(pu.map(r=>r.client)).size);document.getElementById('sDispatch').textContent=fmt(new Set(pu.map(r=>r.dispatchId).filter(Boolean)).size);document.getElementById('sAvgWeight').textContent=(pu.length?totalWeight/pu.length:0).toFixed(2)+' KG';
 
  const clients={};pu.forEach(r=>{let k=r.client||'Not Specified';if(!clients[k])clients[k]={n:0,w:0};clients[k].n++;clients[k].w+=r.weight});
- successClientTable.innerHTML=Object.entries(clients).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${fmt(v.n)}</td><td>${v.w.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${(v.w/1000).toLocaleString('en-IN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td><td>${pu.length?(v.n/pu.length*100).toFixed(1):0}%</td></tr>`).join('');
+ document.getElementById('successClientTable').innerHTML=Object.entries(clients).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${fmt(v.n)}</td><td>${v.w.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${(v.w/1000).toLocaleString('en-IN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td><td>${pu.length?(v.n/pu.length*100).toFixed(1):0}%</td></tr>`).join('');
 
  const dates={};pu.forEach(r=>{let d=r.date||'No Date';if(!dates[d])dates[d]={n:0,w:0};dates[d].n++;dates[d].w+=r.weight});
  const ds=Object.keys(dates).sort();
@@ -256,7 +278,7 @@ function renderSuccess(rows){
  charts.weight=new Chart(document.getElementById('weightTrendChart'),{type:'line',data:{labels:ds,datasets:[{data:ds.map(d=>dates[d].w),tension:.25,borderWidth:2,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});
 
  const dispatch={};pu.forEach(r=>{let k=r.dispatchId||'Not Mapped';if(!dispatch[k])dispatch[k]={n:0,w:0,purs:[]};dispatch[k].n++;dispatch[k].w+=r.weight;if(r.pickupId)dispatch[k].purs.push(r.pickupId)});
- dispatchTable.innerHTML=Object.entries(dispatch).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${fmt(v.n)}</td><td>${v.w.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${(v.w/1000).toLocaleString('en-IN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td><td>${esc(v.purs.join(', '))}</td></tr>`).join('');
+ document.getElementById('dispatchTable').innerHTML=Object.entries(dispatch).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${fmt(v.n)}</td><td>${v.w.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${(v.w/1000).toLocaleString('en-IN',{minimumFractionDigits:3,maximumFractionDigits:3})}</td><td>${esc(v.purs.join(', '))}</td></tr>`).join('');
 }
 function render(){
  const rows=currentRows();renderFailure(rows);renderSuccess(rows);
@@ -272,7 +294,7 @@ document.getElementById('fileInput').addEventListener('change',async e=>{
    for(const sheet of wb.SheetNames){const ws=wb.Sheets[sheet],raw=XLSX.utils.sheet_to_json(ws,{defval:''});if(!raw.length)continue;const h=Object.keys(raw[0]);rows.push(...raw.map(r=>compactRow(r,sheet,h)))}
   }
   if(!rows.length)throw new Error('No usable rows found.');
-  data=rows;localStorage.setItem(KEY,JSON.stringify(data));finishLoad();
+  data=aggregateByPUR(rows);localStorage.setItem(KEY,JSON.stringify(data));finishLoad();
   st.className='status ok';st.textContent=`Loaded ${fmt(data.length)} rows across ${new Set(data.map(x=>x.centre)).size} centre sheet(s).`;
  }catch(err){st.className='status err';st.textContent='Unable to read file: '+err.message}
 });
@@ -280,6 +302,14 @@ function finishLoad(){
  document.getElementById('sourcePanel').classList.add('hidden');document.getElementById('app').classList.remove('hidden');document.getElementById('reuploadBtn').classList.remove('hidden');
  document.getElementById('dataBadge').textContent=`${new Set(data.map(x=>x.centre)).size} Centres Loaded`;setupControls();renderDateChips();render();
 }
-try{const saved=localStorage.getItem(KEY);if(saved){data=JSON.parse(saved);finishLoad()}}catch(e){localStorage.removeItem(KEY)}
+try{
+ const saved=localStorage.getItem(KEY);
+ if(saved){
+   const parsed=JSON.parse(saved);
+   if(Array.isArray(parsed)&&parsed.length&&parsed[0]&&Object.prototype.hasOwnProperty.call(parsed[0],'status')){
+     data=parsed;finishLoad();
+   }else{localStorage.removeItem(KEY)}
+ }
+}catch(e){localStorage.removeItem(KEY)}
 </script>
 </body></html>
