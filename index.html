@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FM Pickup Operations Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#17212b;--muted:#697586;--line:#e5e7eb;--accent:#1264a3;--danger:#c62828;--good:#14804a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,Segoe UI,Arial,sans-serif;color:var(--ink)}
+.wrap{max-width:1500px;margin:auto;padding:24px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-bottom:20px}
+h1{font-size:28px;margin:0 0 6px}.sub{color:var(--muted);font-size:13px}
+.badge{background:#e8f1f8;color:var(--accent);padding:8px 12px;border-radius:999px;font-weight:700;font-size:12px}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+select{border:1px solid var(--line);background:#fff;border-radius:8px;padding:10px 12px;min-width:190px;color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:0 1px 2px #00000008}
+.klabel{font-size:12px;color:var(--muted);margin-bottom:8px}.kpi{font-size:27px;font-weight:800}.small{font-size:11px;color:var(--muted);margin-top:5px}
+.panelgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;min-height:330px}
+.panel h2{font-size:15px;margin:0 0 14px}.canvasbox{height:270px}
+.logic{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px;margin-bottom:16px}
+.logic strong{font-size:13px}.logicrow{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}.logicitem{font-size:12px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;padding:9px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:700}
+footer{color:var(--muted);font-size:11px;padding:6px 2px 20px}
+@media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr)}.panelgrid{grid-template-columns:1fr}}
+@media(max-width:600px){.wrap{padding:14px}.grid{grid-template-columns:1fr}header{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<div><h1>FM Pickup Operations Dashboard</h1><div class="sub">Adjusted pickup-failure view • aggregate operational reporting</div></div>
+<div class="badge">August Data</div>
+</header>
+
+<div class="filters">
+<select id="centerFilter"><option value="">All Centres</option></select>
+<select id="reasonFilter"><option value="">All Failure Reasons</option></select>
+</div>
+
+<div class="grid">
+<div class="card"><div class="klabel">Total PUR</div><div class="kpi" id="totalPUR">-</div></div>
+<div class="card"><div class="klabel">Picked Up</div><div class="kpi" id="pickedUp">-</div></div>
+<div class="card"><div class="klabel">Raw Not Picked</div><div class="kpi" id="rawNotPicked">-</div></div>
+<div class="card"><div class="klabel">Adjusted Failures</div><div class="kpi" id="adjustedFailures">-</div></div>
+<div class="card"><div class="klabel">Adjusted Failure %</div><div class="kpi" id="failurePct">-</div><div class="small">Adjusted failures ÷ Total PUR</div></div>
+</div>
+
+<div class="logic">
+<strong>Failure logic applied</strong>
+<div class="logicrow">
+<div class="logicitem">Raw Not Picked: <b id="logicRaw">-</b></div>
+<div class="logicitem">Excluded OTP/Geofence in-slot: <b id="logicOtp">-</b></div>
+<div class="logicitem">Excluded Multi-client partial handover: <b id="logicMulti">-</b></div>
+<div class="logicitem">Excluded FEDEX EXPORT: <b id="logicFedex">-</b></div>
+</div>
+</div>
+
+<div class="panelgrid">
+<section class="panel"><h2>Failures by Centre</h2><div class="canvasbox"><canvas id="centerChart"></canvas></div></section>
+<section class="panel"><h2>Failure Reasons</h2><div class="canvasbox"><canvas id="reasonChart"></canvas></div></section>
+<section class="panel"><h2>Daily Failure Trend</h2><div class="canvasbox"><canvas id="dateChart"></canvas></div></section>
+<section class="panel"><h2>Top Clients by Adjusted Failures</h2><div class="canvasbox"><canvas id="clientChart"></canvas></div></section>
+</div>
+
+<section class="panel" style="margin-bottom:16px">
+<h2>Top Failure Reasons</h2>
+<table><thead><tr><th>Failure Reason</th><th>Count</th><th>Contribution</th></tr></thead><tbody id="reasonTable"></tbody></table>
+</section>
+
+<footer>Dashboard generated from the supplied workbook. Individual shipment IDs, phone numbers, addresses and employee names are intentionally not published.</footer>
+</div>
+
+<script>
+const DATA = {"generatedFrom": "pickup data August.xlsx", "logic": {"rawNotPicked": 1337, "excludedOtpGeofenceInSlot": 415, "excludedMultiClientPartialHandover": 160, "excludedFedexExport": 91, "adjustedFailures": 675}, "kpis": {"totalPUR": 5277, "pickedUp": 3835, "rawNotPicked": 1337, "cancelled": 105, "adjustedFailures": 675}, "byCenter": [{"Delhivery Center": "Mysore_Hebbalestate_H", "failures": 618}, {"Delhivery Center": "Kozhikode_Central_H", "failures": 55}, {"Delhivery Center": "Kannur_Koodali_H", "failures": 2}], "byReason": [{"Reason": "Pickup not attempted-Not Dispatched", "failures": 269}, {"Reason": "Shipper unavailable", "failures": 198}, {"Reason": "Shipper unavailable-Geofenced", "failures": 76}, {"Reason": "Pickup not attempted", "failures": 55}, {"Reason": "Shipment not ready for pickup-OTP Verified", "failures": 42}, {"Reason": "Shipment not ready for pickup", "failures": 18}, {"Reason": "Pickup missed-Vehicle capacity constraint", "failures": 7}, {"Reason": "Regulatory paperwork insufficient", "failures": 4}, {"Reason": "Shipper has re-located", "failures": 3}, {"Reason": "Shipment not ready for pickup-Barcode/QR mismatch", "failures": 2}, {"Reason": "Delay due to Disturbance/Strike", "failures": 1}], "byDate": [{"Dashboard Date": "2026-01-08", "failures": 66}, {"Dashboard Date": "2026-02-08", "failures": 14}, {"Dashboard Date": "2026-03-08", "failures": 49}, {"Dashboard Date": "2026-04-08", "failures": 41}, {"Dashboard Date": "2026-05-08", "failures": 23}, {"Dashboard Date": "2026-06-08", "failures": 37}, {"Dashboard Date": "2026-07-08", "failures": 29}, {"Dashboard Date": "2026-07-31", "failures": 16}, {"Dashboard Date": "2026-08-08", "failures": 62}, {"Dashboard Date": "2026-08-13", "failures": 28}, {"Dashboard Date": "2026-08-14", "failures": 142}, {"Dashboard Date": "2026-08-15", "failures": 56}, {"Dashboard Date": "2026-09-08", "failures": 24}, {"Dashboard Date": "2026-10-08", "failures": 37}, {"Dashboard Date": "2026-11-08", "failures": 26}, {"Dashboard Date": "2026-12-08", "failures": 25}], "byClient": [{"Client": "FTPL SURFACE", "failures": 190}, {"Client": "AJIO SURFACE", "failures": 35}, {"Client": "KARTROCKETSMALL SURFACE", "failures": 30}, {"Client": "SRMSP SURFACE", "failures": 23}, {"Client": "NIMBUS WH SURFACE", "failures": 21}, {"Client": "NIMBUS ENT SURFACE", "failures": 17}, {"Client": "madura", "failures": 14}, {"Client": "Kart Rocket", "failures": 10}, {"Client": "FTPL SB", "failures": 10}, {"Client": "SHIPMOZO B2BC", "failures": 10}, {"Client": "FYNDNDD SURFACE", "failures": 7}, {"Client": "ITHINK WH SURFACE", "failures": 7}, {"Client": "FYND - NDD", "failures": 6}, {"Client": "ShoppersStop", "failures": 6}, {"Client": "FLIPKART - E2E SURFACE", "failures": 6}], "byProductType": [{"ProductType": "Not Specified", "failures": 572}, {"ProductType": "B2B", "failures": 82}, {"ProductType": "Heavy", "failures": 21}]};
+
+const fmt = n => new Intl.NumberFormat('en-IN').format(n);
+document.getElementById('totalPUR').textContent = fmt(DATA.kpis.totalPUR);
+document.getElementById('pickedUp').textContent = fmt(DATA.kpis.pickedUp);
+document.getElementById('rawNotPicked').textContent = fmt(DATA.kpis.rawNotPicked);
+document.getElementById('adjustedFailures').textContent = fmt(DATA.kpis.adjustedFailures);
+document.getElementById('failurePct').textContent = (DATA.kpis.adjustedFailures/DATA.kpis.totalPUR*100).toFixed(1)+'%';
+
+document.getElementById('logicRaw').textContent = fmt(DATA.logic.rawNotPicked);
+document.getElementById('logicOtp').textContent = fmt(DATA.logic.excludedOtpGeofenceInSlot);
+document.getElementById('logicMulti').textContent = fmt(DATA.logic.excludedMultiClientPartialHandover);
+document.getElementById('logicFedex').textContent = fmt(DATA.logic.excludedFedexExport);
+
+const centerFilter=document.getElementById('centerFilter');
+DATA.byCenter.forEach(x=>{let o=document.createElement('option');o.value=x["Delhivery Center"];o.textContent=x["Delhivery Center"];centerFilter.appendChild(o)});
+const reasonFilter=document.getElementById('reasonFilter');
+DATA.byReason.forEach(x=>{let o=document.createElement('option');o.value=x.Reason;o.textContent=x.Reason;reasonFilter.appendChild(o)});
+
+const common={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+new Chart(document.getElementById('centerChart'),{type:'bar',data:{labels:DATA.byCenter.map(x=>x["Delhivery Center"]),datasets:[{data:DATA.byCenter.map(x=>x.failures),borderWidth:0}]},options:{...common,indexAxis:'y',scales:{x:{beginAtZero:true}}}});
+new Chart(document.getElementById('reasonChart'),{type:'doughnut',data:{labels:DATA.byReason.slice(0,8).map(x=>x.Reason),datasets:[{data:DATA.byReason.slice(0,8).map(x=>x.failures)}]},options:{...common,plugins:{legend:{display:true,position:'right',labels:{boxWidth:12,font:{size:10}}}}}});
+new Chart(document.getElementById('dateChart'),{type:'line',data:{labels:DATA.byDate.map(x=>x["Dashboard Date"]),datasets:[{data:DATA.byDate.map(x=>x.failures),tension:.25,borderWidth:2,pointRadius:3}]},options:{...common,scales:{y:{beginAtZero:true}}}});
+new Chart(document.getElementById('clientChart'),{type:'bar',data:{labels:DATA.byClient.slice(0,10).map(x=>x.Client),datasets:[{data:DATA.byClient.slice(0,10).map(x=>x.failures)}]},options:{...common,indexAxis:'y'}});
+
+const total=DATA.kpis.adjustedFailures;
+document.getElementById('reasonTable').innerHTML=DATA.byReason.slice(0,10).map(x=>`<tr><td>${x.Reason}</td><td>${fmt(x.failures)}</td><td>${(x.failures/total*100).toFixed(1)}%</td></tr>`).join('');
+</script>
+</body>
+</html>
